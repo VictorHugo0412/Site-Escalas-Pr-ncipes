@@ -53,7 +53,7 @@ const $=s=>document.querySelector(s),app=$("#app"),p2=n=>String(n).padStart(2,"0
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const sl=s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-");
 const key=d=>d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate()),fmt=d=>p2(d.getDate())+"/"+p2(d.getMonth()+1);
-let cfg=DEF,online=false,canEdit=false,step=1,ed=null,S={med:"",nome:"",guard:null,esp:null,cortes:{},energia:[],obs:""},parts=[],energ={},tt;
+let cfg=DEF,online=false,SEN="",canEdit=false,step=1,ed=null,S={med:"",nome:"",guard:null,esp:null,cortes:{},energia:[],obs:""},parts=[],energ={},tt;
 function mes(){const n=new Date(),x=new Date(n.getFullYear(),n.getMonth()+1,1),k=x.getFullYear()+"-"+p2(x.getMonth()+1);return cfg.mesAlvo>k?cfg.mesAlvo:k}
 let YM=mes();
 const dias=()=>{const[y,m]=YM.split("-").map(Number);return Array.from({length:new Date(y,m,0).getDate()},(_,i)=>new Date(y,m-1,i+1))};
@@ -62,16 +62,16 @@ const ESP="ESPADAS DA CENTÚRIA",csab=()=>(cfg.consag||[]).find(k=>k.startsWith(
 const alt=d=>{const w=Math.round((new Date(key(d)+"T12:00:00")-new Date(cfg.ancora+"T12:00:00"))/6048e5);return w%2===0?"ARAMÊ":"JULGAMENTO"};
 const trabDia=d=>{const k=key(d),w=d.getDay();if(k===csab())return cfg.consagSab;if(k===cdom())return cfg.consagDom;let b=(cfg.trab[w]||[]).filter(t=>t!=="ARAMÊ"&&t!=="JULGAMENTO");if(w===6)b=[...b,alt(d)];return w===0&&k===key(dom1())?[...cfg.primeiro,...b.filter(t=>!cfg.primeiro.includes(t))]:b};
 const padDia=d=>key(d)===csab()?cfg.padraoCsab:trabDia(d).filter(t=>cfg.padrao.includes(t));
-const aviso=()=>[3,7,11].includes(+YM.slice(5)-1)&&!csab()?`<p style="color:var(--rd);font-weight:700">Atenção: ${label()} é mês de consagração e ainda não tem as datas. Cadastre o sábado em consag no bloco CONFIG do arquivo.</p>`:"";
+const aviso=()=>[3,7,11].includes(+YM.slice(5)-1)&&!csab()?`<p style="color:var(--rd);font-weight:700">Atenção: ${label()} é mês de consagração e ainda não tem as datas. Informe o sábado na aba Perguntas e dias.</p>`:"";
 const label=()=>{const[y,m]=YM.split("-");return MESES[m-1]+" / "+y.slice(2)};
 const me=()=>sl(S.nome);
 function toast(t){clearTimeout(tt);let e=$(".toast");if(!e){e=document.createElement("div");e.className="toast";document.body.appendChild(e)}e.textContent=t;tt=setTimeout(()=>e.remove(),6000)}
 const dn=v=>{v=String(v||"");return /^\d{4}-\d{2}-\d{2}/.test(v)?v.slice(0,10):v},mn=v=>String(v||"").slice(0,7);
-async function carregar(){try{const r=await(await fetch(API)).json();
+async function carregar(){try{const r=await(await fetch(API)).json();if(r.config&&typeof r.config==="object"){cfg={...DEF,...r.config};YM=mes()}
  parts=(r.respostas||[]).filter(x=>mn(x.mes)===YM).map(x=>{let c={};try{c=JSON.parse(x.cortes||"{}")}catch(e){}return{id:sl(String(x.nome)),nome:String(x.nome),med:x.mediunidade,guardiao:x.guardiao==="sim",espadas:x.espadas==="sim",cortes:c,energia:String(x.energia||"").split(",").map(s=>s.trim()).filter(Boolean),obs:x.obs||""}});
  energ={};(r.energia||[]).filter(x=>mn(x.mes)===YM).forEach(x=>{energ[dn(x.dia)]={nome:String(x.nome),slug:sl(String(x.nome))}});
  online=true;refresh()}catch(e){online=false}}
-const refresh=()=>{const a=document.activeElement;if(a&&a.id==="obs")return;render()};
+const refresh=()=>{const a=document.activeElement;if(a&&a.id==="obs")return;if(ed&&ed!=="plan")return;render()};
 function render(){const y=scrollY;app.innerHTML=head()+(step===1?s1():step===2?s2():step===3?s3():"")+(canEdit?'<button class="ed" data-a="ed">⚙ Editor</button>':"")+(ed?panel():"");scrollTo(0,y)}
 
 const head=()=>`<header class="top">ESCALAS · PRÍNCIPES MAYAS<small>${label()}</small></header>`;
@@ -111,7 +111,25 @@ function aoa(){const D=dias(),A=[],names=(k,t)=>t===ESP?parts.filter(p=>p.espada
  const ob=parts.filter(p=>p.obs);if(ob.length){A.push(["OBSERVAÇÕES"]);ob.forEach(p=>A.push([p.nome,p.obs]))}
  return A}
 const plan=()=>{const A=aoa(),W=Math.max(...A.map(r=>r.length));return `<div class="tw"><table>${A.map((r,i)=>{const h=r.length===1;return `<tr>${h?`<td class="${i?"hd":"ti"}" colspan="${W}">${esc(r[0])}</td>`:Array.from({length:W},(_,j)=>`<td class="${j===0&&r[0]&&!/^\d/.test(r[0])?"lb":""}">${esc(r[j]||"")}</td>`).join("")}</tr>`}).join("")}</table></div><button class="go" data-a="xlsx">Baixar planilha (.xlsx)</button><p class="muted">${parts.length} missionário(s) já responderam. Para editar um nome/dia, o missionário reabre o app e altera.</p>`};
-function panel(){return `<div class="ov"><div><div class="row" style="justify-content:space-between"><h2>Planilha · ${label()}</h2><button data-a="close">Fechar</button></div>${aviso()}${plan()}</div></div>`}
+function panel(){const t=ed;return `<div class="ov"><div><div class="row" style="justify-content:space-between"><h2>Painel do Editor · ${label()}</h2><button data-a="close">Fechar</button></div>
+<div class="tabs">${[["nomes","Usuários"],["conf","Perguntas e dias"],["plan","Planilha"]].map(([k,n])=>`<button class="${t===k?"on":""}" data-a="tab" data-v="${k}">${n}</button>`).join("")}</div>${aviso()}
+${t==="nomes"?`<label>Missionários (um por linha)<textarea id="enn" rows="18">${esc(cfg.names.join("\n"))}</textarea></label><button class="go" data-a="svn">Salvar usuários</button>`:
+t==="conf"?`<label>Mês-alvo mínimo (o app avança sozinho para o mês seguinte quando o mês vira)<input type="month" id="ema" value="${cfg.mesAlvo}"></label>
+<label>Pergunta do guardião (use {data})<input id="eper" value="${esc(cfg.pergunta)}"></label>
+<label>Limite de guardiões por mediunidade<input type="number" id="elim" value="${cfg.limite}"></label>
+<label>Trabalhos de quarta (separe por vírgula)<input id="e3" value="${esc((cfg.trab[3]||[]).join(", "))}"></label>
+<label>Trabalhos de sábado<input id="e6" value="${esc((cfg.trab[6]||[]).join(", "))}"></label>
+<label>Trabalhos de domingo<input id="e0" value="${esc((cfg.trab[0]||[]).join(", "))}"></label>
+<label>Extras no 1º domingo<input id="epr" value="${esc(cfg.primeiro.join(", "))}"></label>
+<label>Pré-marcados ao escolher uma data (padrão da planilha)<input id="epa" value="${esc(cfg.padrao.join(", "))}"></label>
+<label>Sábados de consagração (um por linha, AAAA-MM-DD, em abril, agosto e dezembro). O domingo é o dia seguinte.<textarea id="ecs" rows="3">${esc((cfg.consag||[]).join("\n"))}</textarea></label>
+<label>Vagas das Espadas da Centúria<input type="number" id="eesp" value="${cfg.limEsp}"></label>
+<label>Sábado de Aramê de referência (aramê e julgamento alternam toda semana a partir dele)<input type="date" id="eanc" value="${cfg.ancora}"></label>
+<label>Trabalhos do sábado de consagração<input id="ecsb" value="${esc(cfg.consagSab.join(", "))}"></label>
+<label>Trabalhos do domingo de consagração<input id="ecdm" value="${esc(cfg.consagDom.join(", "))}"></label>
+<label>Pré-marcado no sábado de consagração<input id="epc" value="${esc(cfg.padraoCsab.join(", "))}"></label><button class="go" data-a="svc">Salvar configuração</button>`:plan()}</div></div>`}
+const L=id=>$("#"+id).value.split(",").map(s=>s.trim()).filter(Boolean);
+async function saveCfg(n){try{const r=await(await fetch(API,{method:"POST",body:JSON.stringify({acao:"config",senha:SEN,config:n})})).json();if(!r.ok)return toast(r.erro||"Não foi possível salvar.");cfg=n;YM=mes();await carregar();toast("Salvo! Já vale para todos.");$(".toast").style.background="#2a7a2a"}catch(e){toast("Erro ao salvar. Verifique a internet e se o script foi atualizado.")}}
 app.addEventListener("input",e=>{if(e.target.id==="obs")S.obs=e.target.value});
 app.addEventListener("change",e=>{if(e.target.id==="nome")S.nome=e.target.value});
 app.addEventListener("click",async e=>{const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a,v=b.dataset.v;
@@ -129,7 +147,10 @@ app.addEventListener("click",async e=>{const b=e.target.closest("[data-a]");if(!
   else if(S.cortes[v]||(S.esp&&v===csab()))return toast(`Você marcou ${f} em Escalas de Cortes. Esse dia não pode ir também para entrega de energias, altere uma das duas.`);
   else S.energia.push(v)}
  else if(a==="send")return send();
- else if(a==="ed")ed="plan";else if(a==="close")ed=null;
+ else if(a==="ed"){if(!SEN){const s=prompt("Senha do editor:");if(!s)return;try{const r=await(await fetch(API,{method:"POST",body:JSON.stringify({acao:"login",senha:s})})).json();if(!r.ok)return toast("Senha incorreta.");SEN=s}catch(x){return toast("Não foi possível verificar a senha. Confira se o script foi atualizado.")}}ed="nomes"}
+ else if(a==="close")ed=null;else if(a==="tab")ed=v;
+ else if(a==="svn")return saveCfg({...cfg,names:$("#enn").value.split("\n").map(s=>s.trim()).filter(Boolean)});
+ else if(a==="svc")return saveCfg({...cfg,mesAlvo:$("#ema").value||cfg.mesAlvo,pergunta:$("#eper").value,limite:+$("#elim").value||5,trab:{"3":L("e3"),"6":L("e6"),"0":L("e0")},primeiro:L("epr"),padrao:L("epa"),consag:$("#ecs").value.split("\n").map(s=>s.trim()).filter(Boolean),limEsp:+$("#eesp").value||3,ancora:$("#eanc").value||cfg.ancora,consagSab:L("ecsb"),consagDom:L("ecdm"),padraoCsab:L("epc")});
  else if(a==="xlsx"){try{const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa()),"Página1");XLSX.writeFile(wb,`Escala-${YM}.xlsx`)}catch(x){toast("Não foi possível baixar a planilha.")}return}
  render();if(["start","next1","back"].includes(a))scrollTo(0,0)});
 render();
