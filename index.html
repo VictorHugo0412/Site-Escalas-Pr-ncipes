@@ -133,5 +133,5 @@ app.addEventListener("click",async e=>{const b=e.target.closest("[data-a]");if(!
  else if(a==="xlsx"){try{const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa()),"Página1");XLSX.writeFile(wb,`Escala-${YM}.xlsx`)}catch(x){toast("Não foi possível baixar a planilha.")}return}
  render();if(["start","next1","back"].includes(a))scrollTo(0,0)});
 render();
-canEdit=location.hash==="#editor";render();carregar();setInterval(()=>{if(step===2&&!ed)carregar()},30000);
+addEventListener("hashchange",()=>{canEdit=location.hash==="#editor";if(!canEdit)ed=null;render()});canEdit=location.hash==="#editor";render();carregar();setInterval(()=>{if(step===2&&!ed)carregar()},30000);
 </script></body></html>
